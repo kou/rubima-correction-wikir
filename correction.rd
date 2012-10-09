@@ -43,20 +43,7 @@ HTTPサーバーを動かします。
 
 localhostの8080番ポートでHTTPサーバーが起動しました。それでは、Webブラウザーでアクセスしましょう。
 
-  % curl http://localhost:8080/
-  <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
-  <HTML>
-    <HEAD><TITLE>Internal Server Error</TITLE></HEAD>
-    <BODY>
-      <H1>Internal Server Error</H1>
-      Premature end of script headers: /home/kou/work/ruby/rubima-correction-wikir/index.rb
-      <HR>
-      <ADDRESS>
-       WEBrick/1.3.1 (Ruby/1.9.3/2012-04-20) at
-       localhost:8080
-      </ADDRESS>
-    </BODY>
-  </HTML>
+screenshots/cgi-fail.png
 
 CGIの実行に失敗しました。うまく行かないときはまずはログを確認します。HTTPサーバーのログを確認すると以下のようになっています。
 
@@ -77,6 +64,37 @@ index.rb:
   DRb.start_service('druby://localhost:0')
   ro = DRbObject.new_with_uri('druby://localhost:50830')
   ro.start(ENV.to_hash, $stdin, $stdout)
+
+私の環境ではrubyコマンドは(({/usr/bin/ruby}))なので(({/usr/local/bin/ruby}))から(({/usr/bin/ruby}))に変更します。
+
+  commit f9fdacafc7dbe57a537f09a013193f6fe257b454 (HEAD, master)
+  Author: Kouhei Sutou <kou@clear-code.com>
+  Date:   Tue Oct 9 22:06:59 2012 +0900
+
+      Adjust shebang
+
+      Ruby command exists at /usr/bin/ruby instead of /usr/local/bin/ruby on
+      Debian GNU/Linux.
+  ---
+   index.rb |    2 +-
+   1 file changed, 1 insertion(+), 1 deletion(-)
+
+  diff --git a/index.rb b/index.rb
+  index 22d10cd..1b146a6 100755
+  --- a/index.rb
+  +++ b/index.rb
+  @@ -1,4 +1,4 @@
+  -#!/usr/local/bin/ruby
+  +#!/usr/bin/ruby
+   require 'drb/drb'
+
+   DRb.start_service('druby://localhost:0')
+
+ふたたびWebブラウザーでアクセスすると今度はトップページが表示されます。
+
+screenshots/cgi-work.png
+
+これでスタート地点に立てました。それでは、コードを見ていきましょう。
 
 == XXX
 
