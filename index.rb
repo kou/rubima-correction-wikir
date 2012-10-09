@@ -1,4 +1,4 @@
-#!/usr/local/bin/ruby
+#!/usr/bin/ruby
 require 'drb/drb'
 
 DRb.start_service('druby://localhost:0')
