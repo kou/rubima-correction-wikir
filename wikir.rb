@@ -8,9 +8,8 @@ require 'monitor'
 
 class WikiR
   class Book
-    include MonitorMixin
     def initialize
-      super()
+      @monitor = Monitor.new
       @page = {}
     end
 
@@ -19,7 +18,7 @@ class WikiR
     end
 
     def []=(name, src)
-      synchronize do
+      @monitor.synchronize do
         page = self[name]
         @page[name] = page
         page.set_src(src)
