@@ -96,6 +96,215 @@ screenshots/cgi-work.png
 
 これでスタート地点に立てました。それでは、コードを見ていきましょう。
 
+== コードを見る
+
+私がコードを読むときは2つのモードがあります。1つが「なんとなく読む」モードで、もう1つが「必要だから読む」モードです。「なんとなく読む」モードのときは上から順に読んでいって、なんか気になったらコメントしたり直したりたり無視したりします。「必要だから読む」モードのときは、まず必要なところを探して、見つけたらそこだけを集中して読んで他のところには目もくれずに必要なことだけ調べます。
+
+「なんとなく読む」モードはコミットメール((-TODO: コミットメールについて書く。-))を読む時のモードです。「必要だから読む」モードは機能を追加する時やデバッグする時や実装を調べる時のモードです。
+
+今回は機能追加などではなく、気になったことにコメントするために読むので「なんとなく読む」モードです。
+
+WikiRはindex.rbとwikir.rbの2つのファイルで構成されています。まずは、本体であるwikir.rbの方から見ていきましょう。
+
+=== wikir.rb
+
+==== マジックコメント
+
+はじめにファイル内で使うエンコーディングを指定するコメントがあります。
+
+wikir.rb:
+  1 # -*- coding: utf-8 -*-
+
+これはマジックコメントと呼ばれています。マジックコメントには以下のようにいくつかの書き方があります。
+
+  # -*- coding: エンコーディング名 -*-
+  # -*- encoding: エンコーディング名 -*-
+  # coding: エンコーディング名
+  # coding = エンコーディング名
+  # encoding: エンコーディング名
+  # encoding = エンコーディング名
+  # ...
+
+たくさんあるとどの書き方がよいか悩むかもしれませんが、wikir.rbと同じ以下の書き方にしましょう((-Vimを使っている人は(({# vim: fileencoding=エンコーディング名}))でもよいです。-))。
+
+  # -*- coding: エンコーディング名 -*-
+
+この形式はRubyだけではなくGNU Emacsも認識できる形式です。GNU Emacsがエンコーディングを認識すると、保存するときに指定したエンコーディングに変換してくれます。そのため、マジックコメントで指定したエンコーディングと実際のエンコーディングが異なることがありません。なお、ruby-modeを使っているとASCII範囲外の文字列があれば自動でマジックコメントが挿入されるので意識せずにマジックコメントを指定していることでしょう。
+
+==== ライブラリ読み込み
+
+次にライブラリを読み込んでいます。
+
+wikir.rb:
+  2 require 'kramdown'
+  3 require 'webrick'
+  4 require 'webrick/cgi'
+  5 require 'drb/drb'
+  6 require 'erb'
+  7 require 'monitor'
+
+特に気になるところはありません。
+
+==== (({WikiR::Book}))
+
+いよいよクラス定義です。
+
+wikir.rb:
+   9 class WikiR
+  10   class Book
+  11     include MonitorMixin
+  12     def initialize
+  13       super()
+  14       @page = {}
+  15     end
+  16
+  17     def [](name)
+  18       @page[name] || Page.new(name)
+  19     end
+  20
+  21     def []=(name, src)
+  22       synchronize do
+  23         page = self[name]
+  24         @page[name] = page
+  25         page.set_src(src)
+  26       end
+  27     end
+  28   end
+
+まずは(({WikiR::Book}))です。これは複数のページを管理するクラスですね。咳さんはページを管理するクラスには「本」という名前をつけます。RWikiの時もそうでした。
+
+ページを管理するクラスには他にも違う名前が考えられます。例えば「Wiki」という名前です。ページを全部集めたものがWikiだと考えれば適切な名前です。あるいは、「データベース」という名前です。ページが保存されている感じがします。「本」や「Wiki」ではどのように保存するかは気になりませんが、データベースという名前を使うとどのようにページを保存するかを意識している感じがしますね。
+
+咳さんは何かに例えた名前をつけます。作っているものはWikiですが、「ページが集まっているものと言えば本だよね」という連想をして「本」という名前をつけたのでしょう。このように何かに例えた名前をつけると愛着がわき、例えたものベースで説明するようになります。例えば、「ページの数が増えてきて処理に時間がかかるようになったね」というのではなく、「本が厚くなって重くなったね」というような感じです。これには良い面と悪い面がある((-TODO: 説明する？-))のですが、自分が書いたソフトウェアに愛着がわくので一度は試してみるとよいでしょう。
+
+さて、それではコードの中を見てみましょう。
+
+wikir.rb:
+  11 include MonitorMixin
+  12 def initialize
+  13   super()
+  14   @page = {}
+  15 end
+
+(({MonitorMixin}))を使っています。咳さんが使っているのをよく見ます。
+
+これはマルチスレッド対応なクラスを作る時に便利なモジュールで(({synchronize}))メソッドを提供します。同時に複数のスレッドからアクセスされそうなコードを(({synchronize}))メソッドのブロック内で呼び出すことで競合を防ぐことができます。例えば、以下のコードは(({Counter#up}))を複数のスレッドから同時に呼び出すと正しくカウントアップできません。
+
+thread-unsafe-counter.rb:
+  class Counter
+    attr_reader :count
+    def initialize
+      @count = 0
+    end
+
+    def up
+      count = @count
+      sleep 0.00000001
+      @count = count + 1
+    end
+  end
+
+  counter = Counter.new
+
+  threads = []
+  100.times do
+    threads << Thread.new do
+      100.times do
+        counter.up
+      end
+    end
+  end
+  threads.each(&:join)
+
+  p counter.count # => 10000にならない！
+
+これを(({MonitorMixin}))を使ってマルチスレッドでも正しくカウントアップできるようにすると以下のようになります。
+
+thread-safe-counter.rb:
+  require "monitor"
+
+  class Counter
+    include MonitorMixin
+
+    attr_reader :count
+    def initialize
+      super()
+      @count = 0
+    end
+
+    def up
+      synchronize do
+        count = @count
+        sleep 0.00000001
+        @count = count + 1
+      end
+    end
+  end
+
+  counter = Counter.new
+
+  threads = []
+  100.times do
+    threads << Thread.new do
+      100.times do
+        counter.up
+      end
+    end
+  end
+  threads.each(&:join)
+
+  p counter.count # => 10000になる！
+
+違いは以下の通りです。(({MonitorMixin}))を(({include}))して、(({initialize}))で(({super()}))して、(({up}))の中の処理を(({synchronize do ... end}))しています。
+
+  % diff -u thread-unsafe-counter.rb thread-safe-counter.rb 
+  --- thread-unsafe-counter.rb	2012-10-15 00:04:45.476261676 +0900
+  +++ thread-safe-counter.rb	2012-10-15 00:04:34.440532956 +0900
+  @@ -1,13 +1,20 @@
+  +require "monitor"
+  +
+   class Counter
+  +  include MonitorMixin
+  +
+     attr_reader :count
+     def initialize
+  +    super()
+       @count = 0
+     end
+
+     def up
+  -    count = @count
+  -    sleep 0.00000001
+  -    @count = count + 1
+  +    synchronize do
+  +      count = @count
+  +      sleep 0.00000001
+  +      @count = count + 1
+  +    end
+     end
+   end
+
+
+
+
+
+=== index.rb
+
+index.rbはたった6行です。咳プロダクツらしいですね。
+
+index.rb:
+  #!/usr/bin/ruby
+  require 'drb/drb'
+
+  DRb.start_service('druby://localhost:0')
+  ro = DRbObject.new_with_uri('druby://localhost:50830')
+  ro.start(ENV.to_hash, $stdin, $stdout)
+
+その人のコードを見続けていると、この人はどうしてこんなコードを書いたのか、というのがわかってきます。昔、咳さんのコードを見ていた私からすると「このコードはいろんなプロダクツで使いまわしているコードだろうなぁ」と感じます。
+
+ちゃんと書いた咳さんのコードでは「(({ro}))（たぶん、Remote Objectの略）」という名前を使いません。咳さんなら「(({wikir}))（リモートにあるどのオブジェクトを触るかがわかる名前。後述する通りリモートにあるのは(({WikiR::UI}))だけど、(({ui}))）にはしないはず。リモートのオブジェクトを提供する側は公開用に(({WikiR::UI}))というオブジェクトを用意しているけど、使う側からすればWikiサービスを使いたいだけなので、それがUI用のやつかどうかなんて気にしない。）」や「(({front}))（dRuby本でも使われている伝統的な名前）」といった名前を使うはずです。
+
+
 == XXX
 
   * 動かす
