@@ -220,7 +220,7 @@ thread-unsafe-counter.rb:
 
 これを(({MonitorMixin}))を使ってマルチスレッドでも正しくカウントアップできるようにすると以下のようになります。
 
-thread-safe-counter.rb:
+thread-safe-counter-mixin.rb:
   require "monitor"
 
   class Counter
@@ -255,11 +255,11 @@ thread-safe-counter.rb:
 
   p counter.count # => 10000になる！
 
-違いは以下の通りです。(({MonitorMixin}))を(({include}))して、(({initialize}))で(({super()}))して、(({up}))の中の処理を(({synchronize do ... end}))しています。
+違いは以下の通りです。
 
-  % diff -u thread-unsafe-counter.rb thread-safe-counter.rb 
+  % diff -u thread-unsafe-counter.rb thread-safe-counter-mixin.rb 
   --- thread-unsafe-counter.rb	2012-10-15 00:04:45.476261676 +0900
-  +++ thread-safe-counter.rb	2012-10-15 00:04:34.440532956 +0900
+  +++ thread-safe-counter-mixin.rb	2012-10-15 00:04:34.440532956 +0900
   @@ -1,13 +1,20 @@
   +require "monitor"
   +
@@ -283,6 +283,30 @@ thread-safe-counter.rb:
   +    end
      end
    end
+
+(({MonitorMixin}))を(({include}))して、(({initialize}))で(({super()}))して、(({up}))の中の処理を(({synchronize do ... end}))しています。これはdRubyを使ったプログラムでよく見る処理です。
+
+と、(({MonitorMixin}))の説明をしてきましたが、私は(({MonitorMixin}))が好きではありません。(({initialize}))で(({super()}))するのがカッコ悪いなぁと思います。(({super()}))を呼ばなければいけないなら(({@monitor = Monitor.new}))して(({@monitor.synchronize}))とした方が役割が分離されているのがわかりやすいので好きです。
+
+thread-safe-counter-composite.rb:
+  require "monitor"
+
+  class Counter
+    attr_reader :count
+    def initialize
+      @count = 0
+      @monitor = Monitor.new
+    end
+
+    def up
+      @monitor.synchronize do
+        count = @count
+        sleep 0.00000001
+        @count = count + 1
+      end
+    end
+  end
+
 
 
 
