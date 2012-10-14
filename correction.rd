@@ -307,9 +307,45 @@ thread-safe-counter-composite.rb:
     end
   end
 
+ということで、(({WikiR::Book}))も(({MonitorMixin}))ではなく(({Monitor}))を使うようにします。
 
+  commit 96488c8ee5e0158c3dc67bc280c76f8a60e78ae9 (HEAD, master)
+  Author: Kouhei Sutou <kou@clear-code.com>
+  Date:   Mon Oct 15 00:24:45 2012 +0900
 
+      Use Monitor instead of MonitorMixin
 
+      Monitor is readable rather than MonitorMixin.
+  ---
+   wikir.rb |    5 ++---
+   1 file changed, 2 insertions(+), 3 deletions(-)
+
+  diff --git a/wikir.rb b/wikir.rb
+  index 2c73014..72c5a58 100644
+  --- a/wikir.rb
+  +++ b/wikir.rb
+  @@ -8,9 +8,8 @@ require 'monitor'
+
+   class WikiR
+     class Book
+  -    include MonitorMixin
+       def initialize
+  -      super()
+  +      @monitor = Monitor.new
+         @page = {}
+       end
+
+  @@ -19,7 +18,7 @@ class WikiR
+       end
+
+       def []=(name, src)
+  -      synchronize do
+  +      @monitor.synchronize do
+           page = self[name]
+           @page[name] = page
+           page.set_src(src)
+
+TODO: @pageを@pagesにしたい。
 
 
 === index.rb
