@@ -21,7 +21,7 @@ class WikiR
       @monitor.synchronize do
         page = self[name]
         @pages[name] = page
-        page.set_src(src)
+        page.src = src
       end
     end
   end
@@ -29,11 +29,11 @@ class WikiR
   class Page
     def initialize(name)
       @name = name
-      set_src("# #{name}\n\nan empty page. edit me.")
+      self.src = "# #{name}\n\nan empty page. edit me."
     end
     attr_reader :name, :src, :html, :warnings
 
-    def set_src(text)
+    def src=(text)
       @src = text
       km = Kramdown::Document.new(text)
       @html = km.to_html
