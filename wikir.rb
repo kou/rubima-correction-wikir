@@ -10,17 +10,17 @@ class WikiR
   class Book
     def initialize
       @monitor = Monitor.new
-      @page = {}
+      @pages = {}
     end
 
     def [](name)
-      @page[name] || Page.new(name)
+      @pages[name] || Page.new(name)
     end
 
     def []=(name, src)
       @monitor.synchronize do
         page = self[name]
-        @page[name] = page
+        @pages[name] = page
         page.set_src(src)
       end
     end
