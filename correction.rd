@@ -286,7 +286,31 @@ thread-safe-counter-mixin.rb:
 
 (({MonitorMixin}))を(({include}))して、(({initialize}))で(({super()}))して、(({up}))の中の処理を(({synchronize do ... end}))しています。これはdRubyを使ったプログラムでよく見る処理です。
 
-と、(({MonitorMixin}))の説明をしてきましたが、私は(({MonitorMixin}))が好きではありません。(({initialize}))で(({super()}))するのがカッコ悪いなぁと思います。(({super()}))を呼ばなければいけないなら(({@monitor = Monitor.new}))して(({@monitor.synchronize}))とした方が役割が分離されているのがわかりやすいので好きです。
+と、(({MonitorMixin}))の説明をしてきましたが、私は(({MonitorMixin}))が好きではありません。(({initialize}))で(({super()}))するのがカッコ悪いなぁと思います。継承したときに(({initialize}))で(({super()}))するのは親クラスも初期化しないからといけないからだろうなぁとは思います。クラスをインスタンス化するときに(({initialize}))が呼ばれるというルールがあるからです。しかし、モジュールは(({initialize}))が呼ばれるというルールはありません。それなのに(({super}))を呼ばなければいけないのがカッコ悪いなぁと思う理由な気がします。
+
+なお、Ruby 2.0では(({Module#prepend}))があるので、以下のようにすればクラス側で明示的に(({super}))を呼ばなくてもすみます。
+
+module-prepend.rb:
+  # -*- coding: utf-8 -*-
+
+  module MonitorMixin
+    def initialize
+      p :monitor_mixin
+      super # これは必要。これがないと:bookが出力されない
+    end
+  end
+
+  class Book
+    prepend MonitorMixin
+    def initialize
+      p :book
+    end
+  end
+
+  Book.new # => :monitor_mixin
+           #    :book
+
+話が逸れましたが、(({super()}))を呼ばなければいけないなら(({@monitor = Monitor.new}))して(({@monitor.synchronize}))とする方が好きです。こっちの方が役割が分離されていてわかりやすいからです。
 
 thread-safe-counter-composite.rb:
   require "monitor"
