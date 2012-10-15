@@ -35,9 +35,9 @@ class WikiR
 
     def src=(text)
       @src = text
-      km = Kramdown::Document.new(text)
-      @html = km.to_html
-      @warnings = km.warnings
+      document = Kramdown::Document.new(text)
+      @html = document.to_html
+      @warnings = document.warnings
     end
   end
 
