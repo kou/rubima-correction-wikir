@@ -369,8 +369,95 @@ thread-safe-counter-composite.rb:
            @page[name] = page
            page.set_src(src)
 
-TODO: @pageを@pagesにしたい。
+私は、以下のようなときは「こうした方がいいんじゃない？」と日本語でコメ
+ントするのではなくて、直接コミットしてコミットメッセージにどうしてこう
+した方がいいと思うかを書きます。
 
+  * 自分がコミット権を持っている
+  * コミットした人が他の人のコミットも見ていそう
+  * 自分でコミットするのが面倒くさくない
+  * 日本語じゃなくてもコードで伝わりそう
+  * 日本語でも通じなさそう
+
+直接コミットすると、そのコミットには以下の情報が含まれます。
+
+  * どう直したかのサマリー
+    （Use Monitor instead of MonitorMixin）
+  * どうしてこう直したかという理由
+    （Monitor is readable rather than MonitorMixin.）
+  * どう直したか
+    （変更点そのもの。diff）
+
+私は、こっちのコードの方がいいんじゃないかということを伝える時には「どうしてそう思うか」という理由も伝えたいなぁと思っています。理由も伝えれば同じパターン（今回の場合はモジュールなのに(({initialize}))で(({super}))しないといけない）の別のケースの時にも使える知識になってくれるのではないかと期待しているからです。そして、上述のようにコミットすることにより私が伝えたい内容を全部含んだ状態で伝えられるのではないかと思っています。ただ、これが本当に効果がある方法なのかどうかはまだわかっていません。
+
+それでは、コードの続きを読みましょう。
+もう忘れているかもしれませんが、(({initialize}))を見ていました。今の(({initialize}))は以下のようになっています。
+
+wikir.rb:
+  11 def initialize
+  12   @monitor = Monitor.new
+  13   @page = {}
+  14 end
+
+次に気になるのが(({@page}))というインスタンス変数名です。このインスタンス変数は複数のページを扱っているので複数形にしましょう。複数形にすることで、このインスタンス変数には複数の値が入っていることがわかりやすくなります。
+
+  commit 8c2c555dc29c1538ffcfde0a71e30bd4b9bbc11a (HEAD, master)
+  Author: Kouhei Sutou <kou@clear-code.com>
+  Date:   Mon Oct 15 21:59:00 2012 +0900
+
+      Use plural form for collection
+
+      @page ->
+      @pages
+
+      Plural form is suitable for collection.
+  ---
+   wikir.rb |    6 +++---
+   1 file changed, 3 insertions(+), 3 deletions(-)
+
+  diff --git a/wikir.rb b/wikir.rb
+  index 72c5a58..c51e312 100644
+  --- a/wikir.rb
+  +++ b/wikir.rb
+  @@ -10,17 +10,17 @@ class WikiR
+     class Book
+       def initialize
+         @monitor = Monitor.new
+  -      @page = {}
+  +      @pages = {}
+       end
+
+       def [](name)
+  -      @page[name] || Page.new(name)
+  +      @pages[name] || Page.new(name)
+       end
+
+       def []=(name, src)
+         @monitor.synchronize do
+           page = self[name]
+  -        @page[name] = page
+  +        @pages[name] = page
+           page.set_src(src)
+         end
+       end
+
+名前を変える変更をするときのコミットメッセージには以下のようにどのように直したかを書きます。ポイントは縦に並べてどこが変わったかをわかりやすくすることです。
+
+  @page ->
+  @pages
+
+以下のように書く方法もありますが、縦に並べたほうが違いがわかりやすいのでそうしています。なお、縦に並べて違いをわかりやすくするという方法はテスティングフレームワークの失敗時の出力でも使われています。test-unitなら(({assert_equal}))が失敗した時の出力、RSpecなら(({should ==}))が失敗した時の出力を確認しなおしてみてください。
+
+  @page -> @pages
+  Rename @page to @pages.
+
+(({WikiR::Book}))にはもうひとつ気になるところがありますが、それは後で触れることにします。次のクラスへ進みましょう。
+
+==== (({WikiR::Page}))
+
+次のクラスは(({WikiR::Page}))です。
+
+TODO
 
 === index.rb
 
