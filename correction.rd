@@ -455,13 +455,259 @@ wikir.rb:
 
 ==== (({WikiR::Page}))
 
-次のクラスは(({WikiR::Page}))です。
+次のクラスは(({WikiR::Page}))です。(({WikiR::Page}))も小さなクラスです。咳さんのコードに出てくるクラスは小さいことが多いです。
 
-TODO
+wikir.rb:
+  29 class Page
+  30   def initialize(name)
+  31     @name = name
+  32     set_src("# #{name}\n\nan empty page. edit me.")
+  33   end
+  34   attr_reader :name, :src, :html, :warnings
+  35
+  36   def set_src(text)
+  37     @src = text
+  38     km = Kramdown::Document.new(text)
+  39     @html = km.to_html
+  40     @warnings = km.warnings
+  41   end
+  42 end
+
+RWikiの時もそうでしたが、咳さんは(({set_src}))という名前を使います。(({src=}))の方がRubyらしいのに、です。たぶん、「(({src=}))だと単純に値を設定するだけ」というイメージがあるけど、実際は「ソースを設定した後にHTMLに変換するというようにたくさんやっている」から(({set_src}))という別の名前にしているんじゃないかと思います。で、私はこの名前が好きではありません。
+
+(({src=}))でいいんじゃないかと思います。もし、HTMLに変換するコストが大きいと感じるようであれば、本当にHTMLが必要になるまでHTMLへの変換処理を遅延すればよいでしょう。例えば以下のようにです。ただ、このプログラムではそこまでする必要はないんじゃないと思っています。
+
+  def src=(text)
+    @dirty = true
+    @src = text
+  end
+
+  def html
+    parse if @dirty
+    @html
+  end
+
+  def warnings
+    parse if @dirty
+    @warnings
+  end
+
+  private
+  def parse
+    km = Kramdown::Document.new(@src)
+    @html = km.to_html
+    @warnings = km.warnings
+    @dirty = false
+  end
+
+別案は(({set_src}))ではなく(({update_src}))にするというものです。そんなにピンときませんが、(({src=}))よりはたくさんのことをしそうな気がします。
+
+ここでは、(({src=}))にします。理由は(({src=}))の方がRubyらしい名前だからです。Rubyらしくない名前（(({set_src=}))とかcamelCaseのメソッドとか）を使うと、Rubyistが読んだ時にもやっとします。
+
+  commit 727e6c6fa3c862d0e6e87a76d1d6435d06a70cc1 (HEAD, master)
+  Author: Kouhei Sutou <kou@clear-code.com>
+  Date:   Mon Oct 15 23:22:04 2012 +0900
+
+      Use Rubyish name
+
+      set_src ->
+      src=
+
+      Non-Rubyish name confuses Rubyists.
+  ---
+   wikir.rb |    6 +++---
+   1 file changed, 3 insertions(+), 3 deletions(-)
+
+  diff --git a/wikir.rb b/wikir.rb
+  index c51e312..e63f9d6 100644
+  --- a/wikir.rb
+  +++ b/wikir.rb
+  @@ -21,7 +21,7 @@ class WikiR
+         @monitor.synchronize do
+           page = self[name]
+           @pages[name] = page
+  -        page.set_src(src)
+  +        page.src = src
+         end
+       end
+     end
+  @@ -29,11 +29,11 @@ class WikiR
+     class Page
+       def initialize(name)
+         @name = name
+  -      set_src("# #{name}\n\nan empty page. edit me.")
+  +      self.src = "# #{name}\n\nan empty page. edit me."
+       end
+       attr_reader :name, :src, :html, :warnings
+
+  -    def set_src(text)
+  +    def src=(text)
+         @src = text
+         km = Kramdown::Document.new(text)
+         @html = km.to_html
+
+なお、diffにもある通り、(({WikiR::Book}))で後回しにした気になることはこのメソッドの名前のことでした。
+
+次に気になることは(({src=}))の中です。
+
+wikir.rb:
+  36 def src=(text)
+  37   @src = text
+  38   km = Kramdown::Document.new(text)
+  39   @html = km.to_html
+  40   @warnings = km.warnings
+  41 end
+
+(({km}))という変数名が気になります。これはKraMdownの略だと思いますが、このオブジェクトは(({Kramdown::Document}))オブジェクトなので(({km}))ではなく(({document}))が適切です。
+
+  commit 66359d8fa18df2e3ea64d8a7f47e79a710dfa126 (HEAD, master)
+  Author: Kouhei Sutou <kou@clear-code.com>
+  Date:   Mon Oct 15 23:29:07 2012 +0900
+
+      Use meaningful name
+
+      km ->
+      document
+
+      Non-meaningful name is not readable.
+  ---
+   wikir.rb |    6 +++---
+   1 file changed, 3 insertions(+), 3 deletions(-)
+
+  diff --git a/wikir.rb b/wikir.rb
+  index e63f9d6..2bcc096 100644
+  --- a/wikir.rb
+  +++ b/wikir.rb
+  @@ -35,9 +35,9 @@ class WikiR
+
+       def src=(text)
+         @src = text
+  -      km = Kramdown::Document.new(text)
+  -      @html = km.to_html
+  -      @warnings = km.warnings
+  +      document = Kramdown::Document.new(text)
+  +      @html = document.to_html
+  +      @warnings = document.warnings
+       end
+     end
+
+他にも(({src}))と省略しないで(({source}))にしたいとか、(({attr_reader}))は(({initialize}))の下じゃなくて上に書きたいとか、(({"# #{name}..."}))は(({default_source}))というメソッドとして括りだしたいとかありますが省略します。
+
+==== (({Wikir::UI}))
+
+最後は(({WikiR::UI}))です。ERBが使われていて咳さんらしいコードですね。
+
+wikir.rb:
+  44   class UI < WEBrick::CGI
+  45     include ERB::Util
+  46     extend ERB::DefMethod
+  47     def_erb_method('to_html(page)', ERB.new(<<EOS))
+  48 <html>
+  49 <head>
+  50 <title>Kramdown</title>
+  51 <script language="JavaScript">
+  52 function open_edit(){
+  53 document.getElementById('edit').style.display = "block";
+  54 }
+  55 </script>
+  56 </head>
+  57 <body>
+  58 <%= page.html %>
+  59 <a href='javascript:open_edit()'>[edit]</a>
+  60 <div id='edit' style='display:none;'>
+  61 <form method='post'>
+  62 <textarea name='text' rows="40" cols="50"><%=h page.src %></textarea>
+  63 <input type='submit' name='ok' value='ok'/>
+  64 </form>
+  65 </div>
+  66 </body>
+  67 </html>
+  68 EOS
+  69
+  70     def initialize(book, *args)
+  71       super(*args)
+  72       @book = book
+  73     end
+  74
+  75     def do_GET(req, res)
+  76       do_request(req, res)
+  77       build_page(req, res)
+  78     end
+  79     alias :do_POST :do_GET
+  80
+  81     def do_request(req, res)
+  82       text ,= req.query['text']
+  83       return if text.nil? || text.empty?
+  84       text = text.force_encoding('utf-8')
+  85       @book[req.path_info] = text
+  86     rescue
+  87     end
+  88
+  89     def build_page(req, res)
+  90       res['content-type'] = 'text/html; charset=utf-8'
+  91       res.body = to_html(@book[req.path_info])
+  92     end
+  93   end
+
+まずは、ERB関連の部分を見ましょう。
+
+  45     include ERB::Util
+  46     extend ERB::DefMethod
+  47     def_erb_method('to_html(page)', ERB.new(<<EOS))
+  ...
+  68 EOS
+
+特に改善案はないのですが、前から(({DefMethod}))というモジュール名がカッコ悪いなぁと思っていることは書いておきます。
+
+なお、(({def_erb_method}))のようにERBをメソッドとして使うのはERB wayです。VとはView Object（実行環境とテンプレート）なのです！気になる人は((<erbを偲んで（PDF）|URL:http://www.druby.org/erb08.pdf>))を確認しましょう。
+
+ERBはこのくらいにして次に進みましょう。
+
+wikir.rb:
+  81     def do_request(req, res)
+  82       text ,= req.query['text']
+  83       return if text.nil? || text.empty?
+  84       text = text.force_encoding('utf-8')
+  85       @book[req.path_info] = text
+  86     rescue
+  87     end
+
+以下の書き方はRubyでWebアプリケーションを書くときはRackベースのものばかり（Ruby on RailsやSinatraなどのフレームワークを使ったWebアプリケーションなど）という人には馴染みのないものでしょう。
+
+wikir.rb:
+  82       text ,= req.query['text']
+
+昔のcgi.rbやWEBrickが提供するCGI用ライブラリでは、クエリーパラメーターの値は必ず配列で返します。これは、(({cgi.rb?key=value1;key=value2}))というリクエストのときに(({"key"}))の値として(({["value1", "value2"]}))というように配列を返すだけではなく、(({cgi.rb?key=value}))というリクエストのときも(({"key"}))の値として(({["value"]}))というように配列を返すという事です。しかし、多くの場合は最初の値だけで十分です。そこで上述の書き方になります。多重代入の構文ですが、(({,}))を(({=}))にくっつけることで(({,=}))で1つの代入演算子のように見せようとしているのでしょう。右辺の最初の値を左辺に代入するという書き方です。昔は見た書き方ですが、最近は見ることが少なくなった書き方です。
+
+昔話でした。
+
+それでは、最近の書き方をしているところも見てみましょう。
+
+  84       text = text.force_encoding('utf-8')
+
+(({force_encoding}))は(({!}))がついていないので名前だけではわかりづらいですが、破壊的なメソッドです。そのため、戻り値を(({text}))に代入する必要はありません。これで十分です。
+
+  text.force_encoding('utf-8')
+
+元の文字列を変更したくない場合は以下のようにします。
+
+  text = text.dup.force_encoding('utf-8')
+
+このメソッドにはそれよりも気になることがあります。それは、例外を握りつぶしているという事です。
+
+wikir.rb:
+  81     def do_request(req, res)
+  ...
+  86     rescue
+  87     end
+
+(({rescue}))の中でログを出力するなどした方がよいです。
+
+(({WEBrick::CGI}))には触れませんでしたが、WikiRの本体wikir.rbについては以上です。
 
 === index.rb
 
-index.rbはたった6行です。咳プロダクツらしいですね。
+続いて、CGIフロントエンドのindex.rbです。index.rbはたった6行です。咳プロダクツらしいですね。
 
 index.rb:
   #!/usr/bin/ruby
@@ -475,8 +721,39 @@ index.rb:
 
 ちゃんと書いた咳さんのコードでは「(({ro}))（たぶん、Remote Objectの略）」という名前を使いません。咳さんなら「(({wikir}))（リモートにあるどのオブジェクトを触るかがわかる名前。後述する通りリモートにあるのは(({WikiR::UI}))だけど、(({ui}))）にはしないはず。リモートのオブジェクトを提供する側は公開用に(({WikiR::UI}))というオブジェクトを用意しているけど、使う側からすればWikiサービスを使いたいだけなので、それがUI用のやつかどうかなんて気にしない。）」や「(({front}))（dRuby本でも使われている伝統的な名前）」といった名前を使うはずです。
 
+ここでは(({wikir}))にしましょう。
 
-== XXX
+  commit 468dc345e63efd1ef121dc374571e8eab97ed4dd (HEAD, master)
+  Author: Kouhei Sutou <kou@clear-code.com>
+  Date:   Tue Oct 16 00:16:08 2012 +0900
 
-  * 動かす
-  * コードを書く
+      Use meaningful name
+
+      ro ->
+      wikir
+
+      Non-meaningful name is not readable.
+  ---
+   index.rb |    4 ++--
+   1 file changed, 2 insertions(+), 2 deletions(-)
+
+  diff --git a/index.rb b/index.rb
+  index 1b146a6..efe0fbd 100755
+  --- a/index.rb
+  +++ b/index.rb
+  @@ -2,5 +2,5 @@
+   require 'drb/drb'
+
+   DRb.start_service('druby://localhost:0')
+  -ro = DRbObject.new_with_uri('druby://localhost:50830')
+  -ro.start(ENV.to_hash, $stdin, $stdout)
+  +wikir = DRbObject.new_with_uri('druby://localhost:50830')
+  +wikir.start(ENV.to_hash, $stdin, $stdout)
+
+index.rbについては以上です。
+
+== まとめ
+
+咳さんの書いた小さなWikiのコードを読んで気になることをコメントしました。咳さんはどうしてこのようなコードを書いたのだろうか、ということを考えながら読んでいることが伝わったでしょうか。コードを読むときは書いた人がどうしてこのコードを書いたかということを考えながら読みましょう。（TODO: なんで？）
+
+読む人の視点でコードと向き合うことで、書くときはどのようにコードを書けばよいかがわかったのではないでしょうか。自分がどういう意図を持ってコードを書いているかが伝わえるようなコードにするのです。そのコードを読む人がいるのですから。
