@@ -6,7 +6,7 @@ class Counter
 
   def up
     count = @count
-    sleep 0.00000001
+    sleep(0.00000001)
     @count = count + 1
   end
 end
