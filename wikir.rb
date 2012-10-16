@@ -6,7 +6,7 @@ require 'drb/drb'
 require 'erb'
 require 'monitor'
 
-class WikiR
+module WikiR
   class Book
     def initialize
       @monitor = Monitor.new
