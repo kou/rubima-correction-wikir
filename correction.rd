@@ -500,7 +500,7 @@ RWikiの時もそうでしたが、咳さんは(({set_src}))という名前を�
 
 別案は(({set_src}))ではなく(({update_src}))にするというものです。そんなにピンときませんが、(({src=}))よりはたくさんのことをしそうな気がします。
 
-ここでは、(({src=}))にします。理由は(({src=}))の方がRubyらしい名前だからです。Rubyらしくない名前（(({set_src}))とかcamelCaseのメソッド名とか）を使うと、Rubyistが読んだ時にもやっとします。
+ここでは、(({src=}))にします。理由は(({src=}))の方がRubyらしい名前だからです。Rubyらしくない名前（(({set_src}))とかcamelCaseのメソッド名とか）を使うと、Rubyistが読んだ時にモヤっとします。
 
   commit 727e6c6fa3c862d0e6e87a76d1d6435d06a70cc1 (HEAD, master)
   Author: Kouhei Sutou <kou@clear-code.com>
